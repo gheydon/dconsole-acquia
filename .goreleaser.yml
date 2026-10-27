@@ -1,0 +1,104 @@
+# goreleaser config for the dconsole-acquia plugin. Cuts cross-platform
+# binaries on every `git tag v*` push via .github/workflows/release.yml.
+# Local snapshot:
+#
+#   goreleaser release --snapshot --clean
+#
+# No signing / notarization: the plugin binary is downloaded + extracted
+# by `dconsole plugin install`, which runs it as a child process. That
+# path never triggers Apple Gatekeeper (no .app bundle, no double-click,
+# no quarantine attribute set by the dconsole install flow), so the
+# complexity dconsole itself needs for a user-facing CLI doesn't apply
+# to plugin binaries. Keep it simple.
+
+version: 2
+
+project_name: dconsole-acquia
+
+before:
+  hooks:
+    - sh -c 'sed -i.bak "/^replace github.com\/dconsole\/dconsole/d" go.mod && rm -f go.mod.bak'
+    - go mod tidy
+
+builds:
+  - id: dconsole-acquia
+    main: .
+    binary: dconsole-acquia
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.pluginVersion={{.Version}}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64  # uncommon; skip until someone asks
+
+# One fat Mach-O darwin binary — Mac users get a single
+# darwin_all tarball that runs on both Intel and Apple Silicon,
+# matching dconsole's own convention.
+universal_binaries:
+  - id: dconsole-acquia-universal
+    ids: [dconsole-acquia]
+    name_template: dconsole-acquia
+    replace: true
+
+archives:
+  - id: dconsole-acquia
+    ids: [dconsole-acquia, dconsole-acquia-universal]
+    name_template: >-
+      dconsole-acquia_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README*
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+changelog:
+  # Auto-generate the release notes from commits between tags. Group
+  # by prefix so a human-readable section header appears per
+  # (feat|fix|chore|docs|test|refactor).
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??:.+$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix(\(.+\))??:.+$'
+      order: 1
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^Merge pull request'
+      - '^Merge branch'
+
+release:
+  # Mark the first-ever release as draft=false → publishes immediately.
+  draft: false
+  # Include a short install snippet in the GitHub release body so
+  # people landing on the release page know what to do.
+  footer: |
+    ## Install
+
+    ```sh
+    dconsole plugin install \
+      --url=https://github.com/gheydon/dconsole-acquia/releases/download/{{ .Tag }}/dconsole-acquia_{{ .Version }}_darwin_all.tar.gz
+    ```
+
+    Pick the right asset for your OS/arch. All artifacts are checksummed
+    in `checksums.txt`.

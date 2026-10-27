@@ -1,0 +1,50 @@
+name: release
+
+# Cuts a GitHub release with cross-platform binaries whenever a `v*`
+# tag is pushed. Goreleaser config lives at .goreleaser.yml.
+#
+# No signing, no notarization, no homebrew tap — plugin binaries are
+# installed via `dconsole plugin install`, which fetches a tarball and
+# runs the extracted binary as a child process. That path doesn't
+# trigger Gatekeeper, so the complexity dconsole itself needs for its
+# own CLI binary doesn't apply here.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  goreleaser:
+    # ubuntu-latest is fine — no macOS-only tooling involved. The
+    # darwin binaries cross-compile from Linux without issue because
+    # CGO_ENABLED=0.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so goreleaser can build the changelog from
+          # commits since the previous tag.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
