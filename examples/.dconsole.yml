@@ -1,0 +1,32 @@
+# Example dconsole manifest for a site hosted on Acquia Cloud.
+# Copy this into your project repo as `.dconsole.yml`, replace
+# `myapp` with your acli alias prefix, then:
+#
+#   dconsole project:register
+#   dconsole @myapp.dev status
+project: myapp
+default_env: dev
+
+_defaults:
+  bin:
+    kind: drush
+  handler:
+    type: acquia
+
+dev:
+  acquia:
+    alias: myapp.dev
+
+test:
+  acquia:
+    alias: myapp.test
+
+prod:
+  acquia:
+    alias: myapp.prod
+
+# The alias format matches acli's `<app>.<env>` convention. Each env
+# only needs its own `acquia.alias:` because the handler type is set
+# in _defaults. Add `cmd_prefix: ["acli", "remote:drush"]` to a
+# per-env block if you want that env to use acli's drush-specific
+# subcommand instead of the generic ssh wrapper.
