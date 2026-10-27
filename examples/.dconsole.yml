@@ -10,23 +10,35 @@ default_env: dev
 _defaults:
   bin:
     kind: drush
-  handler:
-    type: acquia
 
 dev:
-  acquia:
-    alias: myapp.dev
+  handler:
+    type: acquia
+    acquia:
+      alias: myapp.dev
 
 test:
-  acquia:
-    alias: myapp.test
+  handler:
+    type: acquia
+    acquia:
+      alias: myapp.test
 
 prod:
-  acquia:
-    alias: myapp.prod
+  handler:
+    type: acquia
+    acquia:
+      alias: myapp.prod
 
-# The alias format matches acli's `<app>.<env>` convention. Each env
-# only needs its own `acquia.alias:` because the handler type is set
-# in _defaults. Add `cmd_prefix: ["acli", "remote:drush"]` to a
-# per-env block if you want that env to use acli's drush-specific
-# subcommand instead of the generic ssh wrapper.
+# The alias format matches acli's `<app>.<env>` convention. Each env's
+# `handler:` block names the plugin (`type: acquia`) and carries the
+# plugin's own config under `acquia:` — the plugin pulls it from
+# envelope.Config["acquia"].
+#
+# To use acli's drush-specific wrapper instead of the generic ssh
+# fan-out, add:
+#
+#     acquia:
+#       alias: myapp.dev
+#       cmd_prefix: [acli, remote:drush]
+#
+# (Without cmd_prefix the plugin defaults to `acli remote:ssh`.)
